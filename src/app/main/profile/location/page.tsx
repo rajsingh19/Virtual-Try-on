@@ -1,8 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ClipboardList } from "lucide-react";
+import { ArrowLeft,MapPin  } from "lucide-react";
 
-export default function AboutPage() {
+export default function LocationPage() {
   const router = useRouter();
 
   return (
@@ -23,16 +23,13 @@ export default function AboutPage() {
       <div className="px-4 mt-6">
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col">
           <div className="flex items-center gap-2 mb-3">
-          
-            
+            <MapPin className="w-4 h-4 text-gray-700" />
+            <span className="text-sm font-medium text-gray-800">
+              Location
+            </span>
           </div>
           <p className="text-sm text-gray-700 leading-relaxed">
-            Vizzle transforms the online shopping experience by allowing users to see how
-            something looks before buying it. Using cutting-edge AR technology, it enables
-            instant visualization of clothes and accessories from any e-commerce store on a
-            photo of oneself or a friend. The platform bridges the gap between digital and
-            physical shopping, removing uncertainty and making every purchase confident and
-            informed.
+           Bengaluru,Karnataka
           </p>
         </div>
       </div>

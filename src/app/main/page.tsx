@@ -1,49 +1,77 @@
 "use client";
+
 import Image from "next/image";
 import { Search } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AiOutlineHeart, AiFillHeart } from "react-icons/ai";
 import { useWishlistStore } from "../store/wishlistStore";
+import { useRouter, useSearchParams } from "next/navigation";
+
+interface Product {
+  id: number;
+  name: string;
+  image: string;
+  category: string;
+}
 
 export default function HomePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const { wishlist, toggleWishlist } = useWishlistStore();
 
-  // ✅ Products with category info
-  const products = [
-    { id: 1, name: "Top man black", price: "₹540", image: "/image1.png", category: "Glasses" },
-    { id: 2, name: "Deep grey essential jogger", price: "₹840", image: "/image1.png", category: "Hats" },
-    { id: 3, name: "Top man black with Trousers", price: "₹690", image: "/image1.png", category: "Earrings" },
-    { id: 4, name: "Grey coat and white T-shirt", price: "₹710", image: "/image1.png", category: "Nose Pins" },
-    { id: 5, name: "Grey coat and white T-shirt", price: "₹599", image: "/image1.png", category: "Glasses" },
-    { id: 6, name: "Grey coat and white T-shirt", price: "₹409", image: "/image1.png", category: "Hats" },
+  // ✅ Detect from where user came (dynamic)
+  const [originTab, setOriginTab] = useState("single");
+  useEffect(() => {
+    const tabFromURL = searchParams.get("tab");
+    if (tabFromURL === "multiple" || tabFromURL === "single") {
+      setOriginTab(tabFromURL);
+      // Store it globally
+      localStorage.setItem("originTab", tabFromURL);
+    } else {
+      const saved = localStorage.getItem("originTab");
+      if (saved) setOriginTab(saved);
+    }
+  }, [searchParams]);
+
+  // ✅ Product list
+  const products: Product[] = [
+    { id: 1, name: "Men Black Shirt", image: "/v3.jpg", category: "Men" },
+    { id: 2, name: "Women Grey Jogger", image: "/v2.jpg", category: "Women" },
+    { id: 3, name: "Kids Red T-Shirt", image: "/v5.jpg", category: "Kids" },
+    { id: 4, name: "Men Formal Coat", image: "/v4.jpg", category: "Men" },
+    { id: 5, name: "Women White Dress", image: "/v1.jpg", category: "Women" },
+    { id: 6, name: "Kids Blue Shorts", image: "/v6.jpg", category: "Kids" },
   ];
 
-  // ✅ Categories
-  const categories = [
-    { name: "Glasses", icon: "/glasses.png" },
-    { name: "Hats", icon: "/hat.jpg" },
-    { name: "Earrings", icon: "/earrings.jpg" },
-    { name: "Nose Pins", icon: "/nosepin.jpg" },
-  ];
+  const categories = ["All", "Men", "Women", "Kids"];
 
-  // ✅ Combined search + category filter
+  // ✅ Filter products
   const filteredProducts = products.filter((p) => {
-  const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "All" || p.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
-  const matchesCategory =
-    selectedCategory === "All" ||
-    p.name.toLowerCase().includes(selectedCategory.toLowerCase());
+  // ✅ Handle "Try On" button
+  const handleTryOn = (product: Product) => {
+    const existing = JSON.parse(localStorage.getItem("tryonProducts") || "[]");
+    const alreadyAdded = existing.some((p: Product) => p.id === product.id);
+    const updated = alreadyAdded ? existing : [...existing, product];
+    localStorage.setItem("tryonProducts", JSON.stringify(updated));
 
-  return matchesSearch && matchesCategory;
-});
+    // 🔹 Save the tab user came from (to return correctly later)
+    localStorage.setItem("originTab", originTab);
 
-
+    // 🔹 Redirect back to TryOn page (same tab)
+    router.push(`/main/tryon?tab=${originTab}`);
+  };
 
   return (
-    <div className="flex flex-col min-h-screen bg-white overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-      {/* 🔹 Header with background video */}
+    <div className="flex flex-col min-h-screen bg-white overflow-y-auto pb-24 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+      {/* Header */}
       <div className="relative w-full h-64">
         <video
           src="/BV.mp4"
@@ -55,7 +83,7 @@ export default function HomePage() {
         />
         <div className="absolute inset-0 bg-black/20" />
 
-        {/* 🔍 Search Bar */}
+        {/* Search Bar */}
         <div className="absolute top-5 left-0 w-full px-4">
           <div className="flex items-center gap-2 w-full bg-white/80 backdrop-blur-md rounded-full px-4 py-2">
             <Search className="w-5 h-5 text-gray-500" />
@@ -65,7 +93,7 @@ export default function HomePage() {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setSelectedCategory("All"); // optional: reset category on search
+                setSelectedCategory("All");
               }}
               className="bg-transparent outline-none text-sm w-full text-gray-700 placeholder-gray-500"
             />
@@ -79,97 +107,64 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 🔹 Categories with icons */}
+      {/* Categories */}
       <div className="px-4 mt-4">
         <h2 className="text-lg font-semibold mb-3">Categories</h2>
-        <div className="flex gap-4 overflow-x-auto scrollbar-none pb-2">
-          {/* "All" category */}
-          <div
-            onClick={() => setSelectedCategory("All")}
-            className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl cursor-pointer transition-all ${
-              selectedCategory === "All"
-                ? "bg-black text-white"
-                : "bg-gray-100 hover:bg-gray-200 text-gray-800"
-            }`}
-          >
-            <span className="text-sm font-medium">All</span>
-          </div>
-
-          {categories.map((cat, index) => (
+        <div className="flex gap-3 overflow-x-auto scrollbar-none pb-2">
+          {categories.map((cat) => (
             <div
-              key={index}
-              onClick={() => setSelectedCategory(cat.name)}
-              className={`flex flex-col items-center justify-center min-w-[80px] p-3 rounded-2xl cursor-pointer transition-all ${
-                selectedCategory === cat.name
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`flex items-center justify-center min-w-[90px] px-4 py-2 rounded-full cursor-pointer transition-all text-sm font-medium ${
+                selectedCategory === cat
                   ? "bg-black text-white"
                   : "bg-gray-100 hover:bg-gray-200 text-gray-800"
               }`}
             >
-              <Image
-                src={cat.icon}
-                alt={cat.name}
-                width={40}
-                height={40}
-                className="object-contain mb-2 rounded-full"
-              />
-              <span className="text-sm font-medium">{cat.name}</span>
+              {cat}
             </div>
           ))}
         </div>
       </div>
 
-      {/* 🔹 Product List */}
+      {/* Product List */}
       <div className="grid grid-cols-2 gap-4 p-4">
         {filteredProducts.length > 0 ? (
           filteredProducts.map((product) => (
             <div key={product.id} className="flex flex-col items-start">
-              {/* Product Card */}
-              <div className="relative bg-[#f4f4f4] w-full h-[370px] rounded-[10px] overflow-hidden flex justify-center items-center">
-                {/* Logo (top-left corner) */}
-                <div className="absolute top-2 left-2">
-                  <Image
-                    src="/logo.png"
-                    alt="Brand Logo"
-                    width={50}
-                    height={50}
-                    className="object-contain"
-                  />
-                </div>
-
-                {/* Product Image */}
+              <div className="relative bg-[#f4f4f4] w-full h-[300px] rounded-[10px] overflow-hidden">
                 <Image
                   src={product.image}
                   alt={product.name}
-                  width={260}
-                  height={320}
-                  className="object-contain"
+                  fill
+                  className="object-cover rounded-[10px]"
                 />
               </div>
 
-              {/* Product Info */}
-              <div className="mt-2 flex flex-col w-full">
+              {/* Info + Wishlist */}
+              <div className="mt-2 flex items-center justify-between w-full">
                 <p className="text-[15px] text-gray-800 font-medium truncate">
                   {product.name}
                 </p>
-
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[15px] font-semibold text-black">
-                    {product.price}
-                  </span>
-
-                  {/* Wishlist Heart */}
-                  <button
-                    onClick={() => toggleWishlist(product.id)}
-                    className="text-gray-600 hover:scale-110 transition-all"
-                  >
-                    {wishlist.includes(product.id) ? (
-                      <AiFillHeart className="text-red-500 text-[22px]" />
-                    ) : (
-                      <AiOutlineHeart className="text-gray-600 text-[22px]" />
-                    )}
-                  </button>
-                </div>
+                <button
+                  onClick={() => toggleWishlist(product.id)}
+                  className="text-gray-600 hover:scale-110 transition-all"
+                >
+                  {wishlist.includes(product.id) ? (
+                    <AiFillHeart className="text-red-500 text-[22px]" />
+                  ) : (
+                    <AiOutlineHeart className="text-gray-600 text-[22px]" />
+                  )}
+                </button>
               </div>
+
+              {/* Try On Button */}
+              <button
+                onClick={() => handleTryOn(product)}
+                className="mt-2 w-full bg-black text-white text-sm py-2 rounded-lg hover:bg-gray-800 transition"
+              >
+                Try On
+              </button>
             </div>
           ))
         ) : (
@@ -178,8 +173,6 @@ export default function HomePage() {
           </p>
         )}
       </div>
-
-      
     </div>
   );
 }

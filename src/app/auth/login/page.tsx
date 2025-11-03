@@ -6,8 +6,16 @@ import { FcGoogle } from "react-icons/fc";
 import { FaFacebook } from "react-icons/fa";
 import { IoArrowBack } from "react-icons/io5";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth, firestore } from "@/firebase/firebase";
+import {
+  signInWithEmailAndPassword,
+  signInWithPopup,
+} from "firebase/auth";
+import {
+  auth,
+  firestore,
+  googleProvider,
+  facebookProvider,
+} from "@/firebase/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import Link from "next/link";
 
@@ -19,7 +27,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 🔹 Handle Login
+  // 🔹 Email/Password Login
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
@@ -30,44 +38,78 @@ export default function LoginPage() {
       const user = userCredential.user;
 
       if (user.emailVerified) {
-        // Retrieve user data from LocalStorage
-         await new Promise((res) => setTimeout(res, 1000));
-        const registrationData = localStorage.getItem("registrationData");
-        const { firstName = "", lastName = "", gender = "" } = registrationData
-          ? JSON.parse(registrationData)
-          : {};
-
-        // Check Firestore for user profile
-        const userDoc = await getDoc(doc(firestore, "users", user.uid));
-        if (!userDoc.exists()) {
-          await setDoc(doc(firestore, "users", user.uid), {
-            firstName,
-            lastName,
-            gender,
-            email: user.email,
-          });
-        }
-
+        await handleUserProfile(user);
         router.push("/main");
       } else {
         setError("Please verify your email before logging in.");
       }
     } catch (error) {
       console.error("Login error:", error);
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("An unknown error occurred");
-      }
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 🔹 Google Login
+  const handleGoogleLogin = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      await handleUserProfile(user);
+      router.push("/main");
+    } catch (error) {
+      console.error("Google login error:", error);
+      setError(error instanceof Error ? error.message : "Failed to login with Google");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔹 Facebook Login
+  const handleFacebookLogin = async () => {
+    setError(null);
+    setLoading(true);
+    try {
+      const result = await signInWithPopup(auth, facebookProvider);
+      const user = result.user;
+      await handleUserProfile(user);
+      router.push("/main");
+    } catch (error) {
+      console.error("Facebook login error:", error);
+      setError(error instanceof Error ? error.message : "Failed to login with Facebook");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🔹 Helper: Create/Update Firestore User Profile
+  const handleUserProfile = async (user: any) => {
+    const registrationData = localStorage.getItem("registrationData");
+    const { firstName = "", lastName = "", gender = "" } = registrationData
+      ? JSON.parse(registrationData)
+      : {};
+
+    const userDocRef = doc(firestore, "users", user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+      await setDoc(userDocRef, {
+        firstName,
+        lastName,
+        gender,
+        email: user.email,
+        provider: user.providerData[0]?.providerId || "email",
+      });
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-[380px] bg-white p-6 rounded-2xl shadow-md">
-        {/* Header with Back Button */}
+        {/* Header */}
         <div className="relative flex items-center justify-center mb-6">
           <button
             type="button"
@@ -82,7 +124,9 @@ export default function LoginPage() {
         {/* Google Login */}
         <button
           type="button"
-          className="flex items-center justify-center w-full gap-2 bg-black text-white py-3 rounded-lg mb-3 hover:opacity-90"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="flex items-center justify-center w-full gap-2 bg-black text-white py-3 rounded-lg mb-3 hover:opacity-90 disabled:opacity-70"
         >
           <FcGoogle className="text-xl" />
           Login with Google
@@ -91,7 +135,9 @@ export default function LoginPage() {
         {/* Facebook Login */}
         <button
           type="button"
-          className="flex items-center justify-center w-full gap-2 bg-black text-white py-3 rounded-lg mb-6 hover:opacity-90"
+          onClick={handleFacebookLogin}
+          disabled={loading}
+          className="flex items-center justify-center w-full gap-2 bg-black text-white py-3 rounded-lg mb-6 hover:opacity-90 disabled:opacity-70"
         >
           <FaFacebook className="text-blue-500 text-xl" />
           Login with Facebook
@@ -104,7 +150,7 @@ export default function LoginPage() {
           <hr className="flex-grow border-gray-300" />
         </div>
 
-        {/* Email Input */}
+        {/* Email/Password Login Form */}
         <form onSubmit={handleLogin}>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-1">Email</label>

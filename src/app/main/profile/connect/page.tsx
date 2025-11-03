@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ClipboardList } from "lucide-react";
+import { ArrowLeft, Link, MapPin } from "lucide-react";
 
 export default function AboutPage() {
   const router = useRouter();
@@ -15,7 +15,7 @@ export default function AboutPage() {
         >
           <ArrowLeft className="w-5 h-5 text-gray-800" />
         </button>
-        <h1 className="text-lg font-bold text-gray-900">About</h1>
+        <h1 className="text-lg font-bold text-gray-900">Connect with Us</h1>
         <div className="w-5" /> {/* spacing placeholder */}
       </div>
 
@@ -23,16 +23,16 @@ export default function AboutPage() {
       <div className="px-4 mt-6">
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex flex-col">
           <div className="flex items-center gap-2 mb-3">
-          
-            
+           
           </div>
           <p className="text-sm text-gray-700 leading-relaxed">
-            Vizzle transforms the online shopping experience by allowing users to see how
-            something looks before buying it. Using cutting-edge AR technology, it enables
-            instant visualization of clothes and accessories from any e-commerce store on a
-            photo of oneself or a friend. The platform bridges the gap between digital and
-            physical shopping, removing uncertainty and making every purchase confident and
-            informed.
+           📧{" "}
+          <a
+            href="mailto:info@vizzle.in"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            info@vizzle.in
+          </a>
           </p>
         </div>
       </div>
