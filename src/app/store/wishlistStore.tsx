@@ -4,6 +4,8 @@ import { persist } from "zustand/middleware";
 interface WishlistState {
   wishlist: number[];
   toggleWishlist: (id: number) => void;
+  setWishlist: (ids: number[]) => void;
+  clearWishlist: () => void;
 }
 
 export const useWishlistStore = create<WishlistState>()(
@@ -17,6 +19,12 @@ export const useWishlistStore = create<WishlistState>()(
             ? current.filter((pid) => pid !== id)
             : [...current, id],
         });
+      },
+      setWishlist: (ids) => {
+        set({ wishlist: ids });
+      },
+      clearWishlist: () => {
+        set({ wishlist: [] });
       },
     }),
     {

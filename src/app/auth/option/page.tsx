@@ -2,9 +2,31 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
 export default function AuthPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!loading && user) {
+      router.push("/main");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (user) {
+    return null; // Will redirect
+  }
 
   return (
     <div className="relative min-h-screen bg-gray-100 overflow-hidden">
@@ -45,7 +67,10 @@ export default function AuthPage() {
           </button>
         </div>
 
-        <button className="border border-black text-black text-[20px] font-semibold px-6 py-2 rounded-lg hover:bg-gray-100 transition">
+        <button
+          onClick={() => router.push("/auth/login")}
+          className="border border-black text-black text-[20px] font-semibold px-6 py-2 rounded-lg hover:bg-gray-100 transition"
+        >
           Continue as Guest
         </button>
       </div>

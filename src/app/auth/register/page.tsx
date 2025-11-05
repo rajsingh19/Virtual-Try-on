@@ -35,6 +35,18 @@ export default function RegisterPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [fbLoading, setFbLoading] = useState(false);
 
+  // Import useAuth to check if user is already logged in
+  const { user, loading: authLoading } = typeof window !== 'undefined' ? require('@/contexts/AuthContext').useAuth() : { user: null, loading: false };
+
+  // Redirect if already logged in
+  if (typeof window !== 'undefined') {
+    React.useEffect(() => {
+      if (!authLoading && user) {
+        router.push("/main");
+      }
+    }, [user, authLoading]);
+  }
+
   // 🔹 Handle Email Registration
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -79,9 +91,21 @@ export default function RegisterPage() {
     setError(null);
     setGoogleLoading(true);
     try {
+      if (!auth) {
+        throw new Error("Firebase authentication not initialized");
+      }
+
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+
+      if (!firestore) {
+        throw new Error("Firestore not initialized");
+      }
 
       const userDocRef = doc(firestore, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
@@ -105,6 +129,21 @@ export default function RegisterPage() {
       router.push("/main");
     } catch (error: any) {
       console.error("Google register error:", error);
+
+      // Handle specific error codes
+      if (error.code === 'auth/popup-closed-by-user') {
+        setError("Sign-in cancelled. Please try again.");
+        setGoogleLoading(false);
+        return;
+      } else if (error.code === 'auth/popup-blocked') {
+        setError("Popup blocked. Please allow popups for this site.");
+        setGoogleLoading(false);
+        return;
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        // User opened multiple popups, ignore this error
+        setGoogleLoading(false);
+        return;
+      }
 
       if (error.code === "auth/account-exists-with-different-credential") {
         const pendingCred = GoogleAuthProvider.credentialFromError(error);
@@ -154,9 +193,21 @@ export default function RegisterPage() {
     setError(null);
     setFbLoading(true);
     try {
+      if (!auth) {
+        throw new Error("Firebase authentication not initialized");
+      }
+
       const provider = new FacebookAuthProvider();
+      provider.setCustomParameters({
+        display: 'popup'
+      });
+      
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+
+      if (!firestore) {
+        throw new Error("Firestore not initialized");
+      }
 
       const userDocRef = doc(firestore, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
@@ -180,6 +231,21 @@ export default function RegisterPage() {
       router.push("/main");
     } catch (error: any) {
       console.error("Facebook register error:", error);
+
+      // Handle specific error codes
+      if (error.code === 'auth/popup-closed-by-user') {
+        setError("Sign-in cancelled. Please try again.");
+        setFbLoading(false);
+        return;
+      } else if (error.code === 'auth/popup-blocked') {
+        setError("Popup blocked. Please allow popups for this site.");
+        setFbLoading(false);
+        return;
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        // User opened multiple popups, ignore this error
+        setFbLoading(false);
+        return;
+      }
 
       if (error.code === "auth/account-exists-with-different-credential") {
         const pendingCred = FacebookAuthProvider.credentialFromError(error);

@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { AiFillHeart } from "react-icons/ai";
 import { Trash2 } from "lucide-react";
-import { useWishlistStore } from "../store/wishlistStore";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFirebaseWishlist } from "@/hooks/useFirebaseWishlist";
+import { getFavorites, type Favorite } from "@/lib/firebase/userActivity";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 interface Product {
   id: number;
@@ -14,10 +17,12 @@ interface Product {
   category: string;
 }
 
-export default function FavouritesPage() {
+function FavouritesPageContent() {
   const router = useRouter();
-  const { wishlist, toggleWishlist } = useWishlistStore();
-  const [favouriteProducts, setFavouriteProducts] = useState<Product[]>([]);
+  const { user } = useAuth();
+  const { wishlist, toggleWishlist } = useFirebaseWishlist();
+  const [favouriteProducts, setFavouriteProducts] = useState<Favorite[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Sample products (should match your main page products)
   const allProducts: Product[] = [
@@ -29,21 +34,50 @@ export default function FavouritesPage() {
     { id: 6, name: "Kids Blue Shorts", image: "/v6.jpg", category: "Kids" },
   ];
 
-  useEffect(() => {
-    // Filter products that are in wishlist
-    const favourites = allProducts.filter((product) =>
-      wishlist.includes(product.id)
-    );
-    setFavouriteProducts(favourites);
-  }, [wishlist]);
+  const loadFavorites = React.useCallback(async () => {
+    if (!user) return;
 
-  const handleTryOn = (product: Product) => {
+    try {
+      setLoading(true);
+      const favorites = await getFavorites(user.uid);
+      setFavouriteProducts(favorites);
+    } catch (error) {
+      console.error("Error loading favorites:", error);
+      // Fallback to local wishlist
+      const localFavorites = allProducts.filter((product) =>
+        wishlist.includes(product.id)
+      );
+      setFavouriteProducts(localFavorites as any);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, wishlist]);
+
+  useEffect(() => {
+    loadFavorites();
+  }, [loadFavorites]);
+
+  const handleTryOn = (product: Favorite) => {
     const existing = JSON.parse(localStorage.getItem("tryonProducts") || "[]");
     const alreadyAdded = existing.some((p: Product) => p.id === product.id);
     const updated = alreadyAdded ? existing : [...existing, product];
     localStorage.setItem("tryonProducts", JSON.stringify(updated));
     router.push("/main/tryon");
   };
+
+  const handleRemoveFavorite = async (productId: number, product: Favorite) => {
+    await toggleWishlist(productId, product as any);
+    // Refresh the list
+    await loadFavorites();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 p-6 pb-24">
@@ -73,7 +107,7 @@ export default function FavouritesPage() {
                 
                 {/* Remove from favourites button */}
                 <button
-                  onClick={() => toggleWishlist(product.id)}
+                  onClick={() => handleRemoveFavorite(product.id, product)}
                   className="absolute top-2 right-2 bg-white/90 p-2 rounded-full hover:bg-white transition shadow-md"
                 >
                   <Trash2 className="w-4 h-4 text-red-500" />
@@ -118,6 +152,14 @@ export default function FavouritesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function FavouritesPage() {
+  return (
+    <ProtectedRoute>
+      <FavouritesPageContent />
+    </ProtectedRoute>
   );
 }
 

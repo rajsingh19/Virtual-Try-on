@@ -13,13 +13,65 @@ import {
   Share2,
   Star,
   Handshake,
+  History,
+  Calendar,
+  Mail,
+  Phone,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { IoArrowBack } from "react-icons/io5";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import Image from "next/image";
+import { getTryOnHistory, getFavorites, getUserProfile } from "@/lib/firebase/userActivity";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { user, userProfile, signOut } = useAuth();
+  const [photoURL, setPhotoURL] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    tryOnCount: 0,
+    favoritesCount: 0,
+    loading: true,
+  });
+  const [fullProfile, setFullProfile] = useState<any>(null);
+
+  useEffect(() => {
+    // Set photo from Firebase Auth or userProfile
+    if (user?.photoURL) {
+      setPhotoURL(user.photoURL);
+    }
+
+    // Load user stats and profile data
+    if (user) {
+      loadUserData();
+    }
+  }, [user]);
+
+  const loadUserData = async () => {
+    if (!user) return;
+
+    try {
+      // Load stats
+      const [historyData, favoritesData, profileData] = await Promise.all([
+        getTryOnHistory(user.uid),
+        getFavorites(user.uid),
+        getUserProfile(user.uid),
+      ]);
+
+      setStats({
+        tryOnCount: historyData.length,
+        favoritesCount: favoritesData.length,
+        loading: false,
+      });
+
+      setFullProfile(profileData);
+    } catch (error) {
+      console.error("Error loading user data:", error);
+      setStats(prev => ({ ...prev, loading: false }));
+    }
+  };
 
   // ✅ Function to navigate to any route
   const handleNavigation = (path: string) => {
@@ -29,7 +81,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="relative flex items-center justify-center mb-6">
+      <div className="relative flex items-center justify-center py-4 bg-white shadow-sm mb-4">
         <button
           type="button"
           className="absolute left-3 text-xl"
@@ -37,36 +89,148 @@ export default function ProfilePage() {
         >
           <IoArrowBack />
         </button>
-        <h2 className="text-3xl font-semibold">Profile</h2>
+        <h2 className="text-xl font-semibold">Profile</h2>
       </div>
 
       {/* Profile Section */}
-      <div className="flex flex-col items-center mt-6 relative">
+      <div className="flex flex-col items-center mt-4 px-6">
         <div className="relative">
           {/* Circle Avatar */}
-          <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-            <User size={48} className="text-gray-500" />
+          <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+            {photoURL ? (
+              <Image
+                src={photoURL}
+                alt="Profile"
+                width={96}
+                height={96}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <User size={48} className="text-white" />
+            )}
           </div>
 
           {/* Edit Icon */}
           <Link
             href="/main/profile/editProfile"
-            className="absolute bottom-1 right-1 bg-blue-500 p-2 rounded-full shadow-md hover:bg-blue-600 transition"
+            className="absolute bottom-1 right-1 bg-blue-600 p-2 rounded-full shadow-md hover:bg-blue-700 transition"
           >
-            <Edit size={16} color="white" />
+            <Edit size={14} color="white" />
           </Link>
         </div>
 
-        <h2 className="mt-3 text-lg font-semibold">Sahil Srivastava</h2>
-        <p className="text-gray-500 text-sm">sahil@gmail.com</p>
+        <h2 className="mt-3 text-xl font-bold text-gray-800">
+          {userProfile
+            ? `${userProfile.firstName} ${userProfile.lastName}`
+            : user?.displayName || "User"}
+        </h2>
+        <p className="text-gray-500 text-sm">{user?.email || ""}</p>
+
+        {/* User Stats Cards */}
+        <div className="grid grid-cols-2 gap-3 w-full mt-6 mb-4">
+          {/* Try-Ons Card */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-1">
+              <History className="w-4 h-4 text-blue-600" />
+              <span className="text-xs text-gray-500">Try-Ons</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-800">
+              {stats.loading ? "..." : stats.tryOnCount}
+            </p>
+          </div>
+
+          {/* Favorites Card */}
+          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-1">
+              <Heart className="w-4 h-4 text-red-500" />
+              <span className="text-xs text-gray-500">Favorites</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-800">
+              {stats.loading ? "..." : stats.favoritesCount}
+            </p>
+          </div>
+        </div>
+
+        {/* Account Details Card */}
+        <div className="w-full bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <User className="w-4 h-4" />
+            Account Details
+          </h3>
+          
+          <div className="space-y-3">
+            {/* Email */}
+            <div className="flex items-center gap-3 text-sm">
+              <Mail className="w-4 h-4 text-gray-400" />
+              <div className="flex-1">
+                <p className="text-xs text-gray-500">Email</p>
+                <p className="text-gray-800 font-medium">{user?.email || "Not provided"}</p>
+              </div>
+            </div>
+
+            {/* Phone */}
+            {fullProfile?.phoneNumber && (
+              <div className="flex items-center gap-3 text-sm">
+                <Phone className="w-4 h-4 text-gray-400" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500">Phone</p>
+                  <p className="text-gray-800 font-medium">{fullProfile.phoneNumber}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Gender */}
+            {fullProfile?.gender && (
+              <div className="flex items-center gap-3 text-sm">
+                <Users className="w-4 h-4 text-gray-400" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500">Gender</p>
+                  <p className="text-gray-800 font-medium capitalize">{fullProfile.gender}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Member Since */}
+            {user?.metadata?.creationTime && (
+              <div className="flex items-center gap-3 text-sm">
+                <Calendar className="w-4 h-4 text-gray-400" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500">Member Since</p>
+                  <p className="text-gray-800 font-medium">
+                    {new Date(user.metadata.creationTime).toLocaleDateString('en-US', {
+                      month: 'short',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Location */}
+            {fullProfile?.location && (
+              <div className="flex items-center gap-3 text-sm">
+                <MapPin className="w-4 h-4 text-gray-400" />
+                <div className="flex-1">
+                  <p className="text-xs text-gray-500">Location</p>
+                  <p className="text-gray-800 font-medium">{fullProfile.location}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Options List */}
-      <div className="mt-8 space-y-5 px-6 pb-20">
+      <div className="mt-2 space-y-2 px-6 pb-20">
+        <ProfileItem
+          icon={<History size={20} />}
+          label="Try-On History"
+          onClick={() => handleNavigation("/main/profile/history")}
+        />
         <ProfileItem
           icon={<Heart size={20} />}
           label="Favourites"
-          onClick={() => handleNavigation("/main/bag")}
+          onClick={() => handleNavigation("/favourites")}
         />
         <ProfileItem
           icon={<MapPin size={20} />}
@@ -111,7 +275,9 @@ export default function ProfilePage() {
         <ProfileItem
           icon={<LogOut size={20} />}
           label="Logout"
-          onClick={() => handleNavigation("/logout")}
+          onClick={async () => {
+            await signOut();
+          }}
         />
       </div>
     </div>
@@ -131,13 +297,15 @@ function ProfileItem({
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center justify-between bg-white border border-gray-300 rounded-xl px-4 py-5 shadow-sm hover:bg-gray-100 transition"
+      className="w-full flex items-center justify-between bg-white border border-gray-100 rounded-xl px-4 py-4 shadow-sm hover:bg-gray-50 transition"
     >
       <div className="flex items-center gap-3 text-gray-700">
-        {icon}
+        <div className="p-2 bg-gray-100 rounded-lg">
+          {icon}
+        </div>
         <span className="text-sm font-medium">{label}</span>
       </div>
-      <span className="text-gray-500">&gt;</span>
+      <span className="text-gray-400 text-lg">&rsaquo;</span>
     </button>
   );
 }

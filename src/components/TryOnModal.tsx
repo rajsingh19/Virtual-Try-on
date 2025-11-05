@@ -5,6 +5,8 @@ import Image from "next/image";
 import { X, Loader2, Download, Share2, Sparkles } from "lucide-react";
 import { VizzleAPI } from "@/lib/api/vizzle-api";
 import { toast } from "react-hot-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { saveTryOnHistory } from "@/lib/firebase/userActivity";
 
 interface TryOnModalProps {
   isOpen: boolean;
@@ -23,6 +25,7 @@ export default function TryOnModal({
   garmentName,
   onSuccess,
 }: TryOnModalProps) {
+  const { user } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -99,6 +102,22 @@ export default function TryOnModal({
         setProgress(100);
         setStatusMessage("Complete!");
         toast.success("Try-on created successfully!");
+        
+        // Save to Firebase if user is logged in
+        if (user) {
+          try {
+            await saveTryOnHistory(user.uid, {
+              humanImage: humanUploadResponse.url,
+              garmentImage: garmentUploadResponse.url,
+              resultImage: outputUrl as string,
+              garmentName,
+              garmentType: "auto_detect",
+            });
+          } catch (error) {
+            console.error("Failed to save history:", error);
+            // Don't show error to user, just log it
+          }
+        }
         
         if (onSuccess) {
           onSuccess(outputUrl as string);

@@ -9,12 +9,12 @@ import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
 } from "firebase/auth";
 import {
   auth,
   firestore,
-  googleProvider,
-  facebookProvider,
 } from "@/firebase/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import Link from "next/link";
@@ -26,6 +26,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Import useAuth to check if user is already logged in
+  const { user, loading: authLoading } = typeof window !== 'undefined' ? require('@/contexts/AuthContext').useAuth() : { user: null, loading: false };
+
+  // Redirect if already logged in
+  if (typeof window !== 'undefined') {
+    React.useEffect(() => {
+      if (!authLoading && user) {
+        router.push("/main");
+      }
+    }, [user, authLoading]);
+  }
 
   // 🔹 Email/Password Login
   const handleLogin = async (event: React.FormEvent) => {
@@ -56,13 +68,33 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      if (!auth) {
+        throw new Error("Firebase authentication not initialized");
+      }
+      
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
+      const result = await signInWithPopup(auth, provider);
       const user = result.user;
       await handleUserProfile(user);
       router.push("/main");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Google login error:", error);
-      setError(error instanceof Error ? error.message : "Failed to login with Google");
+      
+      // Handle specific error codes
+      if (error.code === 'auth/popup-closed-by-user') {
+        setError("Sign-in cancelled. Please try again.");
+      } else if (error.code === 'auth/popup-blocked') {
+        setError("Popup blocked. Please allow popups for this site.");
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        // User opened multiple popups, ignore this error
+        setError(null);
+      } else {
+        setError(error.message || "Failed to login with Google");
+      }
     } finally {
       setLoading(false);
     }
@@ -73,13 +105,32 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const result = await signInWithPopup(auth, facebookProvider);
+      if (!auth) {
+        throw new Error("Firebase authentication not initialized");
+      }
+      
+      const provider = new FacebookAuthProvider();
+      provider.setCustomParameters({
+        display: 'popup'
+      });
+      
+      const result = await signInWithPopup(auth, provider);
       const user = result.user;
       await handleUserProfile(user);
       router.push("/main");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Facebook login error:", error);
-      setError(error instanceof Error ? error.message : "Failed to login with Facebook");
+      
+      // Handle specific error codes
+      if (error.code === 'auth/popup-closed-by-user') {
+        setError("Sign-in cancelled. Please try again.");
+      } else if (error.code === 'auth/popup-blocked') {
+        setError("Popup blocked. Please allow popups for this site.");
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        setError("An account with this email already exists with a different sign-in method.");
+      } else {
+        setError(error.message || "Failed to login with Facebook");
+      }
     } finally {
       setLoading(false);
     }

@@ -1,132 +1,320 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { getUserProfile, updateUserProfile } from "@/lib/firebase/userActivity";
+import { toast } from "react-hot-toast";
+import { IoArrowBack } from "react-icons/io5";
+import { Camera, Loader2 } from "lucide-react";
+import Image from "next/image";
 
-export default function ProfileForm() {
+export default function EditProfilePage() {
+  const router = useRouter();
+  const { user, refreshUserProfile } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [photoURL, setPhotoURL] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
-    name: "",
-    contact: "",
+    firstName: "",
+    lastName: "",
+    phoneNumber: "",
     gender: "",
-    gmail: "",
+    location: "",
   });
 
-  const [error, setError] = useState("");
+  useEffect(() => {
+    loadUserData();
+  }, [user]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  const loadUserData = async () => {
+    if (!user) return;
 
-    if (name === "gmail") {
-      const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
-      if (value && !gmailRegex.test(value)) {
-        setError("Please enter a valid Gmail address");
-      } else {
-        setError("");
+    try {
+      setLoading(true);
+      const profile = await getUserProfile(user.uid);
+      
+      if (profile) {
+        setFormData({
+          firstName: profile.firstName || "",
+          lastName: profile.lastName || "",
+          phoneNumber: profile.phoneNumber || "",
+          gender: profile.gender || "",
+          location: profile.location || "",
+        });
+        setPhotoURL(user.photoURL || null);
       }
+    } catch (error) {
+      console.error("Error loading profile:", error);
+      toast.error("Failed to load profile");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (error) return;
-    alert("Form submitted successfully!");
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+      
+      // Preview image (Firebase Storage upload can be added later)
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoURL(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      
+      toast.info("Photo upload to Firebase Storage coming soon!");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!user) {
+      toast.error("User not authenticated");
+      return;
+    }
+
+    if (!formData.firstName.trim()) {
+      toast.error("First name is required");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Update profile data
+      await updateUserProfile(user.uid, {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
+        gender: formData.gender,
+        location: formData.location.trim(),
+      });
+
+      // Refresh user profile in context
+      await refreshUserProfile();
+
+      toast.success("Profile updated successfully!");
+      
+      // Navigate back after short delay
+      setTimeout(() => {
+        router.push("/main/profile");
+      }, 1000);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="w-[350px] bg-white p-6 rounded-xl shadow-md space-y-4"
-      >
-        {/* Name */}
-        <div>
-          <label
-            htmlFor="name"
-            className="block text-sm font-medium text-gray-600 mb-1"
-          >
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Enter your name"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-        </div>
-
-        {/* Contact */}
-        <div>
-          <label
-            htmlFor="contact"
-            className="block text-sm font-medium text-gray-600 mb-1"
-          >
-            Contact
-          </label>
-          <input
-            id="contact"
-            name="contact"
-            type="tel"
-            value={formData.contact}
-            onChange={handleChange}
-            placeholder="+91 1234567890"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-        </div>
-
-        {/* Gender */}
-        <div>
-          <label
-            htmlFor="gender"
-            className="block text-sm font-medium text-gray-600 mb-1"
-          >
-            Gender
-          </label>
-          <input
-            id="gender"
-            name="gender"
-            type="text"
-            value={formData.gender}
-            onChange={handleChange}
-            placeholder="Male / Female"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-        </div>
-
-        {/* Gmail */}
-        <div>
-          <label
-            htmlFor="gmail"
-            className="block text-sm font-medium text-gray-600 mb-1"
-          >
-            Gmail
-          </label>
-          <input
-            id="gmail"
-            name="gmail"
-            type="email"
-            value={formData.gmail}
-            onChange={handleChange}
-            placeholder="example@gmail.com"
-            className={`w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 ${
-              error
-                ? "border-red-500 focus:ring-red-400"
-                : "border-gray-300 focus:ring-blue-400"
-            }`}
-          />
-          {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-        </div>
-
-        {/* Submit Button */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="relative flex items-center justify-center py-4 bg-white shadow-sm mb-6">
         <button
-          type="submit"
-          disabled={!!error}
-          className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+          type="button"
+          className="absolute left-3 text-xl"
+          onClick={() => router.back()}
         >
-          Submit
+          <IoArrowBack />
         </button>
-      </form>
+        <h2 className="text-xl font-semibold">Edit Profile</h2>
+      </div>
+
+      <div className="max-w-md mx-auto px-6 pb-20">
+        {/* Profile Photo Section */}
+        <div className="flex justify-center mb-6">
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+              {photoURL ? (
+                <Image
+                  src={photoURL}
+                  alt="Profile"
+                  width={96}
+                  height={96}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-3xl text-white font-bold">
+                  {formData.firstName?.[0]?.toUpperCase() || "U"}
+                </span>
+              )}
+            </div>
+            
+            <label
+              htmlFor="photo-upload"
+              className="absolute bottom-0 right-0 bg-blue-600 p-2 rounded-full shadow-md hover:bg-blue-700 transition cursor-pointer"
+            >
+              <Camera size={16} className="text-white" />
+              <input
+                id="photo-upload"
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Email Display (Read-only) */}
+        <div className="mb-4 p-4 bg-gray-100 rounded-lg">
+          <p className="text-xs text-gray-500 mb-1">Email (cannot be changed)</p>
+          <p className="text-sm font-medium text-gray-700">{user?.email}</p>
+        </div>
+
+        {/* Edit Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* First Name */}
+          <div>
+            <label
+              htmlFor="firstName"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              First Name *
+            </label>
+            <input
+              id="firstName"
+              name="firstName"
+              type="text"
+              required
+              value={formData.firstName}
+              onChange={handleChange}
+              placeholder="Enter your first name"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Last Name */}
+          <div>
+            <label
+              htmlFor="lastName"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Last Name
+            </label>
+            <input
+              id="lastName"
+              name="lastName"
+              type="text"
+              value={formData.lastName}
+              onChange={handleChange}
+              placeholder="Enter your last name"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Phone Number */}
+          <div>
+            <label
+              htmlFor="phoneNumber"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Phone Number
+            </label>
+            <input
+              id="phoneNumber"
+              name="phoneNumber"
+              type="tel"
+              value={formData.phoneNumber}
+              onChange={handleChange}
+              placeholder="+1 234 567 8900"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Gender */}
+          <div>
+            <label
+              htmlFor="gender"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Gender
+            </label>
+            <select
+              id="gender"
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">Select gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+              <option value="prefer_not_to_say">Prefer not to say</option>
+            </select>
+          </div>
+
+          {/* Location */}
+          <div>
+            <label
+              htmlFor="location"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Location
+            </label>
+            <input
+              id="location"
+              name="location"
+              type="text"
+              value={formData.location}
+              onChange={handleChange}
+              placeholder="City, Country"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-4">
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </button>
+          </div>
+
+          {/* Cancel Button */}
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="w-full bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition font-medium"
+          >
+            Cancel
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
