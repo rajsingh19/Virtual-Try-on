@@ -74,8 +74,16 @@ export default function RegisterPage() {
       // Save user data temporarily (for login use)
       localStorage.setItem("registrationData", JSON.stringify({ firstName, lastName, gender }));
 
-      await sendEmailVerification(user);
-      alert("Verification email sent! Please verify before logging in.");
+      // Skip email verification for admin user
+      const isAdminUser = email.toLowerCase() === "admin@gmail.com";
+
+      if (!isAdminUser) {
+        await sendEmailVerification(user);
+        alert("Verification email sent! Please verify before logging in.");
+      } else {
+        alert("Admin account created! You can now login directly.");
+      }
+      
       router.push("/auth/login");
     } catch (error) {
       console.error("Register error:", error);

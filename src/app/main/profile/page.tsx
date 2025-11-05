@@ -272,13 +272,19 @@ export default function ProfilePage() {
           label="Partner With Us"
           onClick={() => handleNavigation("/main/profile/partner")}
         />
-        <ProfileItem
-          icon={<LogOut size={20} />}
-          label="Logout"
-          onClick={async () => {
-            await signOut();
-          }}
-        />
+
+        {/* Logout Button - Prominent at Bottom */}
+        <div className="mt-6">
+          <button
+            onClick={async () => {
+              await signOut();
+            }}
+            className="w-full flex items-center justify-center gap-3 bg-red-50 border-2 border-red-200 text-red-600 rounded-xl px-4 py-4 hover:bg-red-100 hover:border-red-300 transition font-medium shadow-sm"
+          >
+            <LogOut size={20} />
+            <span>Logout</span>
+          </button>
+        </div>
       </div>
     </div>
   );

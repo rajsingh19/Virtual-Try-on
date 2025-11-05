@@ -1,11 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { Search } from "lucide-react";
+import { Search, ShoppingBag } from "lucide-react";
 import { useState, useEffect, Suspense } from "react";
 import { AiOutlineHeart, AiFillHeart } from "react-icons/ai";
 import { useWishlistStore } from "../store/wishlistStore";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { isAdmin } from "@/lib/firebase/products";
 
 interface Product {
   id: number;
@@ -17,9 +19,13 @@ interface Product {
 function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const { wishlist, toggleWishlist } = useWishlistStore();
+
+  // Check if current user is admin
+  const isAdminUser = user && isAdmin(user.email);
 
   // ✅ Detect from where user came (dynamic)
   const [originTab, setOriginTab] = useState("single");
@@ -106,6 +112,19 @@ function HomePageContent() {
           <p className="text-sm opacity-90">Try fashion that fits you best</p>
         </div>
       </div>
+
+      {/* Admin Manage Products Button */}
+      {isAdminUser && (
+        <div className="px-4 mt-4">
+          <button
+            onClick={() => router.push("/admin/dashboard")}
+            className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-blue-800 transition-all font-medium"
+          >
+            <ShoppingBag className="w-5 h-5" />
+            Manage Products (Admin)
+          </button>
+        </div>
+      )}
 
       {/* Categories */}
       <div className="px-4 mt-4">

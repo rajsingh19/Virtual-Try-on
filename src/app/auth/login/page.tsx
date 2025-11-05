@@ -49,7 +49,10 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      if (user.emailVerified) {
+      // Skip email verification for admin user
+      const isAdminUser = email.toLowerCase() === "admin@gmail.com";
+
+      if (user.emailVerified || isAdminUser) {
         await handleUserProfile(user);
         router.push("/main");
       } else {
