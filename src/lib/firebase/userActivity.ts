@@ -47,6 +47,17 @@ export interface Feedback {
   timestamp: any;
 }
 
+export interface Comment {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  comment: string;
+  productId?: number | null; // Optional: for product-specific comments
+  productName?: string | null;
+  timestamp: any;
+}
+
 // ============= Try-On History =============
 
 /**
@@ -244,6 +255,105 @@ export async function getFeedback(userId: string): Promise<Feedback[]> {
   } catch (error) {
     console.error("Error getting feedback:", error);
     return [];
+  }
+}
+
+// ============= Comments =============
+
+/**
+ * Submit a comment (can be general or product-specific)
+ */
+export async function submitComment(
+  userId: string,
+  userName: string,
+  userEmail: string,
+  commentData: Omit<Comment, "id" | "userId" | "userName" | "userEmail" | "timestamp">
+): Promise<void> {
+  try {
+    const commentsRef = collection(firestore, "comments");
+    const newCommentDoc = doc(commentsRef);
+    
+    await setDoc(newCommentDoc, {
+      ...commentData,
+      id: newCommentDoc.id,
+      userId,
+      userName,
+      userEmail,
+      timestamp: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Error submitting comment:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get all comments (optionally filtered by productId)
+ */
+export async function getComments(productId?: number | null): Promise<Comment[]> {
+  try {
+    const commentsRef = collection(firestore, "comments");
+    let q;
+    
+    if (productId !== undefined && productId !== null) {
+      q = query(commentsRef, where("productId", "==", productId));
+    } else {
+      q = query(commentsRef);
+    }
+    
+    const querySnapshot = await getDocs(q);
+    const comments: Comment[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      comments.push(doc.data() as Comment);
+    });
+    
+    return comments.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis() || 0;
+      const timeB = b.timestamp?.toMillis() || 0;
+      return timeB - timeA; // Most recent first
+    });
+  } catch (error) {
+    console.error("Error getting comments:", error);
+    return [];
+  }
+}
+
+/**
+ * Get user's comments
+ */
+export async function getUserComments(userId: string): Promise<Comment[]> {
+  try {
+    const commentsRef = collection(firestore, "comments");
+    const q = query(commentsRef, where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+    
+    const comments: Comment[] = [];
+    querySnapshot.forEach((doc) => {
+      comments.push(doc.data() as Comment);
+    });
+    
+    return comments.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis() || 0;
+      const timeB = b.timestamp?.toMillis() || 0;
+      return timeB - timeA;
+    });
+  } catch (error) {
+    console.error("Error getting user comments:", error);
+    return [];
+  }
+}
+
+/**
+ * Delete a comment (only by the user who created it or admin)
+ */
+export async function deleteComment(commentId: string): Promise<void> {
+  try {
+    const commentDocRef = doc(firestore, "comments", commentId);
+    await deleteDoc(commentDocRef);
+  } catch (error) {
+    console.error("Error deleting comment:", error);
+    throw error;
   }
 }
 

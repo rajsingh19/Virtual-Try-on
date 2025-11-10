@@ -1,26 +1,58 @@
 "use client";
 
 import { useState } from "react";
-import { Star, Send } from "lucide-react";
+import { Star, Send, Loader2 } from "lucide-react";
 import { IoArrowBack } from "react-icons/io5";
+import { useAuth } from "@/contexts/AuthContext";
+import { submitFeedback } from "@/lib/firebase/userActivity";
+import { toast } from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 export default function ReviewPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const [rating, setRating] = useState<number>(0);
   const [hover, setHover] = useState<number>(0);
   const [review, setReview] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const ratingLabels = ["Very Bad", "Bad", "Average", "Good", "Excellent"];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rating && !review) return;
+    if (!rating && !review) {
+      toast.error("Please provide a rating or comment");
+      return;
+    }
 
-    console.log({ rating, review });
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
-    setRating(0);
-    setReview("");
+    if (!user) {
+      toast.error("Please login to submit feedback");
+      router.push("/auth/login");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await submitFeedback(user.uid, {
+        rating: rating || 0,
+        comment: review || "",
+      });
+      
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        setRating(0);
+        setReview("");
+        router.back();
+      }, 2000);
+      toast.success("Thank you for your feedback!");
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      toast.error("Failed to submit feedback. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -104,14 +136,21 @@ export default function ReviewPage() {
           {/* Submit Button */}
           <button
             type="submit"
-            className={`w-full py-3 rounded-xl text-white font-semibold transition ${
-              rating || review
+            className={`w-full py-3 rounded-xl text-white font-semibold transition flex items-center justify-center gap-2 ${
+              (rating || review) && !isSubmitting
                 ? "bg-blue-600 hover:bg-blue-700"
                 : "bg-gray-300 cursor-not-allowed"
             }`}
-            disabled={!rating && !review}
+            disabled={(!rating && !review) || isSubmitting}
           >
-            Submit
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              "Submit"
+            )}
           </button>
         </form>
       </div>

@@ -146,7 +146,12 @@ function TryOnPageContent() {
           <TabsContent value="single">
             <Card
               className="border-dashed border-2 border-gray-300 rounded-lg mb-4 hover:bg-gray-50 cursor-pointer relative"
-              onClick={!lastGarment ? handleAddGarment : undefined}
+              onClick={!lastGarment ? () => {
+                const input = document.getElementById(
+                  "galleryUploadSingle"
+                ) as HTMLInputElement | null;
+                input?.click();
+              } : undefined}
             >
               {/* 🖼️ Gallery Icon (top-left) */}
               <button
@@ -186,15 +191,19 @@ function TryOnPageContent() {
 
                     <div className="absolute top-2 right-2 flex gap-2 bg-white/70 rounded-md p-1">
                       <button
-                        onClick={() => setPreviewImage(lastGarment.image)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewImage(lastGarment.image);
+                        }}
                         className="p-1 hover:bg-gray-200 rounded"
                       >
                         <Eye className="h-4 w-4 text-gray-600" />
                       </button>
                       <button
-                        onClick={() =>
-                          handleDeleteGarment(garments.length - 1)
-                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteGarment(garments.length - 1);
+                        }}
                         className="p-1 hover:bg-gray-200 rounded"
                       >
                         <Trash2 className="h-4 w-4 text-gray-600" />
@@ -292,7 +301,12 @@ function TryOnPageContent() {
                 ) : (
                   <Card
                     key={`empty-${index}`}
-                    onClick={handleAddGarment}
+                    onClick={() => {
+                      const input = document.getElementById(
+                        `galleryUploadMultiple-${index}`
+                      ) as HTMLInputElement | null;
+                      input?.click();
+                    }}
                     className="border-dashed border-2 border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer relative"
                   >
                     {/* 🖼️ Gallery Icon (top-left) */}
