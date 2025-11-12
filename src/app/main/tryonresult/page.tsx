@@ -17,6 +17,7 @@ export default function TryOnResultPage() {
   const [videoProgress, setVideoProgress] = useState(0);
   const [buyLink, setBuyLink] = useState<string | null>(null);
   const [productImage, setProductImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Load try-on result from localStorage
@@ -40,6 +41,9 @@ export default function TryOnResultPage() {
     if (savedProductImage) {
       setProductImage(savedProductImage);
     }
+
+    // Show result immediately without any loading delay
+    setIsLoading(false);
   }, []);
 
   const handleShare = async (platform?: string) => {
@@ -173,6 +177,17 @@ export default function TryOnResultPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading result...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50 p-4 relative">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6 relative">
@@ -180,7 +195,7 @@ export default function TryOnResultPage() {
           Try On Result
         </h2>
 
-        <div className="relative rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-gray-100 to-gray-50">
+        <div className="relative rounded-2xl overflow-hidden mb-6 bg-white">
           <div className="relative aspect-[3/4] w-full">
             <Image
               src={resultUrl}

@@ -133,9 +133,9 @@ function TryOnPageContent() {
     if (selectedGarmentForTryOn?.image) {
       localStorage.setItem("tryonProductImage", selectedGarmentForTryOn.image);
     }
-    // Close modal and redirect immediately
+    // Close modal and redirect immediately without any delay
     setShowTryOnModal(false);
-    router.push("/main/tryonresult");
+    router.replace("/main/tryonresult");
   };
 
   return (

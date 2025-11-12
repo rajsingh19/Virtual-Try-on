@@ -39,7 +39,7 @@ export default function ReviewPage() {
                 comment: review || "",
               });
               
-              // Mark that user has given feedback
+              // Mark that user has given feedback for logout flow
               localStorage.setItem("hasGivenLogoutFeedback", "true");
               
               setShowToast(true);
@@ -52,8 +52,8 @@ export default function ReviewPage() {
                 // Check if user came from logout flow
                 const cameFromLogout = localStorage.getItem("cameFromLogout");
                 if (cameFromLogout === "true") {
+                  // Clear the logout flow flag and go back to profile
                   localStorage.removeItem("cameFromLogout");
-                  // Go back to profile page which will show logout modal
                   router.push("/main/profile");
                 } else {
                   router.back();

@@ -54,7 +54,7 @@ export default function TryOnModal({
     setVideoProgress(0);
     setVideoStatusMessage("");
     setIsGeneratingVideo(false);
-    
+
     setIsProcessing(true);
     setProgress(10);
     setStatusMessage("Uploading your photo...");
@@ -119,7 +119,7 @@ export default function TryOnModal({
         setProgress(100);
         setStatusMessage("Complete!");
         toast.success("Try-on created successfully!");
-        
+
         // Save to Firebase if user is logged in
         if (user) {
           try {
@@ -135,7 +135,7 @@ export default function TryOnModal({
             // Don't show error to user, just log it
           }
         }
-        
+
         if (onSuccess) {
           onSuccess(outputUrl as string);
         }
@@ -297,107 +297,22 @@ export default function TryOnModal({
 
           {/* Result State */}
           {resultUrl && (
-            <div className="space-y-4">
-              {/* Image Result */}
-              <div className="relative w-full aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden">
-                <Image
-                  src={resultUrl}
-                  alt="Try-on result"
-                  fill
-                  className="object-contain"
+            <div className="flex flex-col items-center justify-center py-10">
+              <div className="relative">
+                <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-sm font-semibold text-blue-600">
+                    90%
+                  </span>
+                </div>
+              </div>
+              <p className="mt-4 text-gray-600 text-center">{statusMessage}</p>
+              <div className="w-full max-w-xs mt-4 bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${90}%` }}
                 />
               </div>
-
-              <div className="bg-blue-50 rounded-lg p-4">
-                <p className="text-sm text-gray-700 text-center">
-                  ✨ Your virtual try-on with <strong>{garmentName}</strong> is
-                  ready!
-                </p>
-              </div>
-
-              {/* Video Generation Section */}
-              {!videoUrl && !isGeneratingVideo && (
-                <button
-                  onClick={handleGenerateVideo}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition font-medium shadow-md"
-                >
-                  <Video className="w-5 h-5" />
-                  Generate Video
-                </button>
-              )}
-
-              {/* Video Generation Progress */}
-              {isGeneratingVideo && (
-                <div className="flex flex-col items-center justify-center py-6 bg-gray-50 rounded-xl">
-                  <div className="relative">
-                    <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xs font-semibold text-purple-600">
-                        {videoProgress}%
-                      </span>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-sm text-gray-600 text-center px-4">
-                    {videoStatusMessage}
-                  </p>
-                  <div className="w-full max-w-xs mt-3 bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${videoProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Video Result */}
-              {videoUrl && (
-                <div className="space-y-3">
-                  <div className="relative w-full aspect-[3/4] bg-gray-900 rounded-xl overflow-hidden">
-                    <video
-                      src={videoUrl}
-                      controls
-                      className="w-full h-full object-contain"
-                      autoPlay
-                      loop
-                      muted
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  </div>
-                  <button
-                    onClick={handleDownloadVideo}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-medium"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Video
-                  </button>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleDownload}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition font-medium"
-                >
-                  <Download className="w-4 h-4" />
-                  Download
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Share
-                </button>
-              </div>
-
-              <button
-                onClick={onClose}
-                className="w-full py-3 text-gray-600 hover:text-gray-800 font-medium"
-              >
-                Close
-              </button>
             </div>
           )}
 
