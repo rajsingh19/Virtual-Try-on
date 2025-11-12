@@ -1,5 +1,5 @@
 import {initializeApp, getApp, getApps} from "firebase/app";
-import {getAuth, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
+import {getAuth} from "firebase/auth";
 import {getFirestore} from "firebase/firestore";
 import {getStorage} from "firebase/storage";
 
@@ -51,21 +51,8 @@ if (typeof window !== 'undefined') {
 
 export { auth, firestore, storage, app };
 
-// Export functions to create providers (avoids SSR issues)
-export const getGoogleProvider = () => {
-  if (typeof window !== 'undefined') {
-    return new GoogleAuthProvider();
-  }
-  return null;
-};
 
-export const getFacebookProvider = () => {
-  if (typeof window !== 'undefined') {
-    return new FacebookAuthProvider();
-  }
-  return null;
-};
 
-// Legacy exports for backward compatibility
-export const googleProvider = typeof window !== 'undefined' ? new GoogleAuthProvider() : null;
-export const facebookProvider = typeof window !== 'undefined' ? new FacebookAuthProvider() : null;
+
+
+

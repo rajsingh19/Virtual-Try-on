@@ -2,15 +2,12 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FcGoogle } from "react-icons/fc";
-import { FaFacebook } from "react-icons/fa";
+
+
 import { IoArrowBack } from "react-icons/io5";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  FacebookAuthProvider,
 } from "firebase/auth";
 import {
   auth,
@@ -66,78 +63,9 @@ export default function LoginPage() {
     }
   };
 
-  // 🔹 Google Login
-  const handleGoogleLogin = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      if (!auth) {
-        throw new Error("Firebase authentication not initialized");
-      }
-      
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
-      
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      await handleUserProfile(user);
-      router.push("/main");
-    } catch (error: any) {
-      console.error("Google login error:", error);
-      
-      // Handle specific error codes
-      if (error.code === 'auth/popup-closed-by-user') {
-        setError("Sign-in cancelled. Please try again.");
-      } else if (error.code === 'auth/popup-blocked') {
-        setError("Popup blocked. Please allow popups for this site.");
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        // User opened multiple popups, ignore this error
-        setError(null);
-      } else {
-        setError(error.message || "Failed to login with Google");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  // 🔹 Facebook Login
-  const handleFacebookLogin = async () => {
-    setError(null);
-    setLoading(true);
-    try {
-      if (!auth) {
-        throw new Error("Firebase authentication not initialized");
-      }
-      
-      const provider = new FacebookAuthProvider();
-      provider.setCustomParameters({
-        display: 'popup'
-      });
-      
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      await handleUserProfile(user);
-      router.push("/main");
-    } catch (error: any) {
-      console.error("Facebook login error:", error);
-      
-      // Handle specific error codes
-      if (error.code === 'auth/popup-closed-by-user') {
-        setError("Sign-in cancelled. Please try again.");
-      } else if (error.code === 'auth/popup-blocked') {
-        setError("Popup blocked. Please allow popups for this site.");
-      } else if (error.code === 'auth/account-exists-with-different-credential') {
-        setError("An account with this email already exists with a different sign-in method.");
-      } else {
-        setError(error.message || "Failed to login with Facebook");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+
+
 
   // 🔹 Helper: Create/Update Firestore User Profile
   const handleUserProfile = async (user: any) => {
@@ -175,34 +103,9 @@ export default function LoginPage() {
           <h2 className="text-2xl font-semibold">Login</h2>
         </div>
 
-        {/* Google Login */}
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="flex items-center justify-center w-full gap-2 bg-black text-white py-3 rounded-lg mb-3 hover:opacity-90 disabled:opacity-70"
-        >
-          <FcGoogle className="text-xl" />
-          Login with Google
-        </button>
 
-        {/* Facebook Login */}
-        <button
-          type="button"
-          onClick={handleFacebookLogin}
-          disabled={loading}
-          className="flex items-center justify-center w-full gap-2 bg-black text-white py-3 rounded-lg mb-6 hover:opacity-90 disabled:opacity-70"
-        >
-          <FaFacebook className="text-blue-500 text-xl" />
-          Login with Facebook
-        </button>
 
-        {/* Divider */}
-        <div className="flex items-center mb-6">
-          <hr className="flex-grow border-gray-300" />
-          <span className="mx-2 text-sm text-gray-500">Or login with email</span>
-          <hr className="flex-grow border-gray-300" />
-        </div>
+
 
         {/* Email/Password Login Form */}
         <form onSubmit={handleLogin}>
