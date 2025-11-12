@@ -166,9 +166,9 @@ const filteredProducts = products.filter((p) => {
     }}
   >
     {[
-      { src: "/BV1.mp4", title: "Try-on Cloths" },
+      { src: "/BV1.mp4", title: "Try-on Clothes" },
+      { src: "/BV3.mp4", title: "Try-on Accessories" },
       { src: "/BV2.mp4", title: "Generate your Video" },
-      { src: "/BV3.mp4", title: "Try-on Accesories" },
     ].map((video, index) => (
       <div
         key={index}
