@@ -73,7 +73,7 @@ function HomePageContent() {
     }
   }, [searchParams]);
 
-  const categories = ["All", "Men", "Women", "Kids"];
+  const categories = ["All", "Man", "Women", "Kids"];
 
   // ✅ Filter logic (search filters category)
 const filteredProducts = products.filter((p) => {
