@@ -49,11 +49,25 @@ export async function checkHealth(): Promise<HealthResponse> {
  */
 export async function uploadHumanImage(file: File): Promise<ImageUploadResponse> {
   try {
+    // Create fresh FormData with unique filename to prevent cache issues
     const formData = new FormData();
-    formData.append('file', file);
+    const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name}`;
+    const fileBlob = new Blob([file], { type: file.type });
+    const uniqueFile = new File([fileBlob], uniqueFileName, { type: file.type });
+    formData.append('file', uniqueFile);
 
-    const response = await fetch(`${apiClient.baseUrl}/api/upload/human/`, {
+    // Add cache-busting query parameter
+    const cacheBuster = `?t=${Date.now()}&r=${Math.random()}`;
+    const uploadUrl = `${apiClient.baseUrl}/api/upload/human/${cacheBuster}`;
+    
+    const response = await fetch(uploadUrl, {
       method: 'POST',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+      cache: 'no-store',
       body: formData,
     });
 
@@ -73,11 +87,25 @@ export async function uploadHumanImage(file: File): Promise<ImageUploadResponse>
  */
 export async function uploadGarmentImage(file: File): Promise<ImageUploadResponse> {
   try {
+    // Create fresh FormData with unique filename to prevent cache issues
     const formData = new FormData();
-    formData.append('file', file);
+    const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name}`;
+    const fileBlob = new Blob([file], { type: file.type });
+    const uniqueFile = new File([fileBlob], uniqueFileName, { type: file.type });
+    formData.append('file', uniqueFile);
 
-    const response = await fetch(`${apiClient.baseUrl}/api/upload/tryonitem/`, {
+    // Add cache-busting query parameter
+    const cacheBuster = `?t=${Date.now()}&r=${Math.random()}`;
+    const uploadUrl = `${apiClient.baseUrl}/api/upload/tryonitem/${cacheBuster}`;
+    
+    const response = await fetch(uploadUrl, {
       method: 'POST',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+      cache: 'no-store',
       body: formData,
     });
 

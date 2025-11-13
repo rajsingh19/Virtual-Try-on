@@ -1,80 +1,135 @@
 "use client";
 
-import { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { VizzleAPI, type TransformResponse, type VideoResponse } from '@/lib/api/vizzle-api';
+import { useUploadStore } from '@/app/store/uploadStore';
+import { useTryOnStore } from '@/app/store/tryonStore';
 
 /**
  * Hook for uploading human/person image
  */
 export function useUploadHuman() {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<{ url: string; publicId: string } | null>(null);
+  const {
+    humanUploading,
+    humanError,
+    humanUploadedImage,
+    setHumanUploading,
+    setHumanError,
+    setHumanUploadedImage,
+    resetHuman,
+  } = useUploadStore();
 
   const upload = useCallback(async (file: File) => {
-    setUploading(true);
-    setError(null);
+    // Clear any previous state to prevent cache issues
+    setHumanError(null);
+    setHumanUploading(true);
+    
     try {
-      const response = await VizzleAPI.uploadHumanImage(file);
-      setUploadedImage({ url: response.url, publicId: response.public_id });
+      // Create a fresh file reference to avoid cache issues
+      const fileBlob = file instanceof Blob ? file : new Blob([file], { type: file.type });
+      const freshFile = new File([fileBlob], file.name, { 
+        type: file.type,
+        lastModified: Date.now() 
+      });
+      
+      const response = await VizzleAPI.uploadHumanImage(freshFile);
+      setHumanUploadedImage({ url: response.url, publicId: response.public_id });
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload image';
-      setError(errorMessage);
+      setHumanError(errorMessage);
+      // Clear uploaded image on error to prevent stale state
+      setHumanUploadedImage(null);
       throw err;
     } finally {
-      setUploading(false);
+      setHumanUploading(false);
     }
-  }, []);
+  }, [setHumanUploading, setHumanError, setHumanUploadedImage]);
 
   const reset = useCallback(() => {
-    setUploadedImage(null);
-    setError(null);
-  }, []);
+    resetHuman();
+  }, [resetHuman]);
 
-  return { upload, uploading, error, uploadedImage, reset };
+  return { 
+    upload, 
+    uploading: humanUploading, 
+    error: humanError, 
+    uploadedImage: humanUploadedImage, 
+    reset 
+  };
 }
 
 /**
  * Hook for uploading garment/clothing image
  */
 export function useUploadGarment() {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<{ url: string; publicId: string } | null>(null);
+  const {
+    garmentUploading,
+    garmentError,
+    garmentUploadedImage,
+    setGarmentUploading,
+    setGarmentError,
+    setGarmentUploadedImage,
+    resetGarment,
+  } = useUploadStore();
 
   const upload = useCallback(async (file: File) => {
-    setUploading(true);
-    setError(null);
+    // Clear any previous state to prevent cache issues
+    setGarmentError(null);
+    setGarmentUploading(true);
+    
     try {
-      const response = await VizzleAPI.uploadGarmentImage(file);
-      setUploadedImage({ url: response.url, publicId: response.public_id });
+      // Create a fresh file reference to avoid cache issues
+      const fileBlob = file instanceof Blob ? file : new Blob([file], { type: file.type });
+      const freshFile = new File([fileBlob], file.name, { 
+        type: file.type,
+        lastModified: Date.now() 
+      });
+      
+      const response = await VizzleAPI.uploadGarmentImage(freshFile);
+      setGarmentUploadedImage({ url: response.url, publicId: response.public_id });
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload image';
-      setError(errorMessage);
+      setGarmentError(errorMessage);
+      // Clear uploaded image on error to prevent stale state
+      setGarmentUploadedImage(null);
       throw err;
     } finally {
-      setUploading(false);
+      setGarmentUploading(false);
     }
-  }, []);
+  }, [setGarmentUploading, setGarmentError, setGarmentUploadedImage]);
 
   const reset = useCallback(() => {
-    setUploadedImage(null);
-    setError(null);
-  }, []);
+    resetGarment();
+  }, [resetGarment]);
 
-  return { upload, uploading, error, uploadedImage, reset };
+  return { 
+    upload, 
+    uploading: garmentUploading, 
+    error: garmentError, 
+    uploadedImage: garmentUploadedImage, 
+    reset 
+  };
 }
 
 /**
  * Hook for performing virtual try-on
  */
 export function useVirtualTryOn() {
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<TransformResponse | null>(null);
-  const [polling, setPolling] = useState(false);
+  const {
+    processing,
+    polling,
+    error,
+    result,
+    resultImageUrl,
+    setProcessing,
+    setPolling,
+    setError,
+    setResult,
+    setResultImageUrl,
+    resetTryOn,
+  } = useTryOnStore();
 
   const performTryOn = useCallback(async (humanImg: string, garmImg: string, options?: {
     garmentType?: string;
@@ -100,7 +155,7 @@ export function useVirtualTryOn() {
     } finally {
       setProcessing(false);
     }
-  }, []);
+  }, [setProcessing, setError, setResult]);
 
   const checkStatus = useCallback(async (predictionId: string) => {
     try {
@@ -112,13 +167,18 @@ export function useVirtualTryOn() {
       setError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [setError, setResult]);
 
   const waitForCompletion = useCallback(async (predictionId: string) => {
     setPolling(true);
     try {
       const response = await VizzleAPI.waitForVirtualTryOn(predictionId);
       setResult(response);
+      // Extract image URL from result
+      if (response.status === "succeeded" && response.output) {
+        const outputUrl = Array.isArray(response.output) ? response.output[0] : response.output;
+        setResultImageUrl(outputUrl as string);
+      }
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to wait for completion';
@@ -127,24 +187,32 @@ export function useVirtualTryOn() {
     } finally {
       setPolling(false);
     }
-  }, []);
+  }, [setPolling, setError, setResult, setResultImageUrl]);
 
   const reset = useCallback(() => {
-    setResult(null);
-    setError(null);
-  }, []);
+    resetTryOn();
+  }, [resetTryOn]);
 
-  return { performTryOn, checkStatus, waitForCompletion, processing, polling, error, result, reset };
+  return { performTryOn, checkStatus, waitForCompletion, processing, polling, error, result, resultImageUrl, reset };
 }
 
 /**
  * Hook for performing layered try-on
  */
 export function useLayeredTryOn() {
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<TransformResponse | null>(null);
-  const [polling, setPolling] = useState(false);
+  const {
+    layeredProcessing,
+    layeredPolling,
+    layeredError,
+    layeredResult,
+    resultImageUrl,
+    setLayeredProcessing,
+    setLayeredPolling,
+    setLayeredError,
+    setLayeredResult,
+    setResultImageUrl,
+    resetLayered,
+  } = useTryOnStore();
 
   const performLayeredTryOn = useCallback(async (
     resultImg: string,
@@ -155,8 +223,8 @@ export function useLayeredTryOn() {
       params?: any;
     }
   ) => {
-    setProcessing(true);
-    setError(null);
+    setLayeredProcessing(true);
+    setLayeredError(null);
     try {
       const response = await VizzleAPI.performLayeredTryOn({
         result_img: resultImg,
@@ -165,60 +233,80 @@ export function useLayeredTryOn() {
         use_vision: options?.useVision ?? false,
         params: options?.params,
       });
-      setResult(response);
+      setLayeredResult(response);
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to perform layered try-on';
-      setError(errorMessage);
+      setLayeredError(errorMessage);
       throw err;
     } finally {
-      setProcessing(false);
+      setLayeredProcessing(false);
     }
-  }, []);
+  }, [setLayeredProcessing, setLayeredError, setLayeredResult]);
 
   const checkStatus = useCallback(async (predictionId: string) => {
     try {
       const response = await VizzleAPI.getLayeredTryOnStatus(predictionId);
-      setResult(response);
+      setLayeredResult(response);
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to check status';
-      setError(errorMessage);
+      setLayeredError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [setLayeredError, setLayeredResult]);
 
   const waitForCompletion = useCallback(async (predictionId: string) => {
-    setPolling(true);
+    setLayeredPolling(true);
     try {
       const response = await VizzleAPI.waitForLayeredTryOn(predictionId);
-      setResult(response);
+      setLayeredResult(response);
+      // Extract image URL from result
+      if (response.status === "succeeded" && response.output) {
+        const outputUrl = Array.isArray(response.output) ? response.output[0] : response.output;
+        setResultImageUrl(outputUrl as string);
+      }
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to wait for completion';
-      setError(errorMessage);
+      setLayeredError(errorMessage);
       throw err;
     } finally {
-      setPolling(false);
+      setLayeredPolling(false);
     }
-  }, []);
+  }, [setLayeredPolling, setLayeredError, setLayeredResult, setResultImageUrl]);
 
   const reset = useCallback(() => {
-    setResult(null);
-    setError(null);
-  }, []);
+    resetLayered();
+  }, [resetLayered]);
 
-  return { performLayeredTryOn, checkStatus, waitForCompletion, processing, polling, error, result, reset };
+  return { 
+    performLayeredTryOn, 
+    checkStatus, 
+    waitForCompletion, 
+    processing: layeredProcessing, 
+    polling: layeredPolling, 
+    error: layeredError, 
+    result: layeredResult, 
+    reset 
+  };
 }
 
 /**
  * Hook for generating videos
  */
 export function useVideoGeneration() {
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<VideoResponse | null>(null);
-  const [polling, setPolling] = useState(false);
+  const {
+    videoProcessing,
+    videoPolling,
+    videoError,
+    videoResult,
+    setVideoProcessing,
+    setVideoPolling,
+    setVideoError,
+    setVideoResult,
+    resetVideo,
+  } = useTryOnStore();
 
   const generateVideo = useCallback(async (
     imageUrl: string,
@@ -228,8 +316,8 @@ export function useVideoGeneration() {
       fps?: number;
     }
   ) => {
-    setProcessing(true);
-    setError(null);
+    setVideoProcessing(true);
+    setVideoError(null);
     try {
       const response = await VizzleAPI.generateVideo({
         image_url: imageUrl,
@@ -237,59 +325,68 @@ export function useVideoGeneration() {
         duration: options?.duration || 3,
         fps: options?.fps || 24,
       });
-      setResult(response);
+      setVideoResult(response);
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to generate video';
-      setError(errorMessage);
+      setVideoError(errorMessage);
       throw err;
     } finally {
-      setProcessing(false);
+      setVideoProcessing(false);
     }
-  }, []);
+  }, [setVideoProcessing, setVideoError, setVideoResult]);
 
   const checkStatus = useCallback(async (predictionId: string) => {
     try {
       const response = await VizzleAPI.getVideoStatus(predictionId);
-      setResult(response);
+      setVideoResult(response);
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to check status';
-      setError(errorMessage);
+      setVideoError(errorMessage);
       throw err;
     }
-  }, []);
+  }, [setVideoError, setVideoResult]);
 
   const waitForCompletion = useCallback(async (predictionId: string) => {
-    setPolling(true);
+    setVideoPolling(true);
     try {
       const response = await VizzleAPI.waitForVideo(predictionId);
-      setResult(response);
+      setVideoResult(response);
       return response;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to wait for completion';
-      setError(errorMessage);
+      setVideoError(errorMessage);
       throw err;
     } finally {
-      setPolling(false);
+      setVideoPolling(false);
     }
-  }, []);
+  }, [setVideoPolling, setVideoError, setVideoResult]);
 
   const reset = useCallback(() => {
-    setResult(null);
-    setError(null);
-  }, []);
+    resetVideo();
+  }, [resetVideo]);
 
-  return { generateVideo, checkStatus, waitForCompletion, processing, polling, error, result, reset };
+  return { 
+    generateVideo, 
+    checkStatus, 
+    waitForCompletion, 
+    processing: videoProcessing, 
+    polling: videoPolling, 
+    error: videoError, 
+    result: videoResult, 
+    reset 
+  };
 }
 
 /**
  * Hook for checking garment safety
  */
 export function useGarmentSafety() {
-  const [checking, setChecking] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ allowed: boolean; message: string } | null>(null);
+  // Keep local state for this as it's not critical for persistence
+  const [checking, setChecking] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [result, setResult] = React.useState<{ allowed: boolean; message: string } | null>(null);
 
   const checkSafety = useCallback(async (garmentDescription: string) => {
     setChecking(true);

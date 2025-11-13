@@ -23,12 +23,20 @@ export const apiClient = {
         url += `?${queryString}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}${url}`, {
+      // Add cache-busting for GET requests if no query params exist
+      const separator = url.includes('?') ? '&' : '?';
+      const cacheBuster = `${separator}_t=${Date.now()}`;
+      const finalUrl = `${API_BASE_URL}${url}${cacheBuster}`;
+
+      const response = await fetch(finalUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
         },
+        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -47,12 +55,20 @@ export const apiClient = {
     body?: any
   }): Promise<{ data?: T; error?: any }> {
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      // Add cache-busting query parameter for POST requests
+      const separator = endpoint.includes('?') ? '&' : '?';
+      const cacheBuster = `${separator}_t=${Date.now()}`;
+      const finalUrl = `${API_BASE_URL}${endpoint}${cacheBuster}`;
+
+      const response = await fetch(finalUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
         },
+        cache: 'no-store',
         body: options?.body ? JSON.stringify(options.body) : undefined,
       });
 

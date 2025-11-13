@@ -9,95 +9,209 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import TryOnModal from "@/components/TryOnModal";
 import { toast } from "react-hot-toast";
+import { useTryOnPageStore } from "@/app/store/tryonPageStore";
 
 function TryOnPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [tab, setTab] = useState("single");
-  const [garments, setGarments] = useState<any[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [modelImage, setModelImage] = useState<string | null>(null);
   const modelInputRef = useRef<HTMLInputElement>(null);
   const [showTryOnModal, setShowTryOnModal] = useState(false);
   const [selectedGarmentForTryOn, setSelectedGarmentForTryOn] =
     useState<any>(null);
 
+  // Use Zustand store for state management
+  const {
+    modelImage,
+    garments,
+    originTab,
+    setModelImage,
+    setGarments,
+    addGarment,
+    removeGarment,
+    setOriginTab,
+  } = useTryOnPageStore();
+
+  // In-memory storage for large images that can't be persisted
+  const [largeModelImage, setLargeModelImage] = useState<string | null>(null);
+  const [largeGarmentImages, setLargeGarmentImages] = useState<Map<number, string>>(new Map());
+
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("tryonProducts") || "[]");
-    setGarments(stored);
+    // Clean up old large localStorage items that might cause quota issues
+    try {
+      const oldModelImage = localStorage.getItem("modelImage");
+      if (oldModelImage && oldModelImage.startsWith('data:')) {
+        const size = (oldModelImage.length * 3) / 4;
+        if (size > 1 * 1024 * 1024) {
+          // Remove large old model image
+          localStorage.removeItem("modelImage");
+          console.log("Removed large model image from localStorage");
+        }
+      }
+    } catch (error) {
+      // Ignore errors during cleanup
+    }
+
+    // Load garments from localStorage (legacy support)
+    try {
+      const stored = JSON.parse(localStorage.getItem("tryonProducts") || "[]");
+      if (stored.length > 0) {
+        // Filter out large base64 images from stored garments
+        const filtered = stored.map((garment: any) => {
+          if (garment.image && garment.image.startsWith('data:')) {
+            const size = (garment.image.length * 3) / 4;
+            if (size > 1 * 1024 * 1024) {
+              return { ...garment, image: '' };
+            }
+          }
+          return garment;
+        });
+        setGarments(filtered);
+      }
+    } catch (error) {
+      console.error("Error loading garments from localStorage:", error);
+      // If there's an error, try to clear the corrupted data
+      try {
+        localStorage.removeItem("tryonProducts");
+      } catch (e) {
+        // Ignore
+      }
+    }
 
     const tabFromURL = searchParams.get("tab");
     if (tabFromURL === "multiple" || tabFromURL === "single") {
       setTab(tabFromURL);
-      localStorage.setItem("originTab", tabFromURL);
+      setOriginTab(tabFromURL);
     } else {
-      const saved = localStorage.getItem("originTab");
-      if (saved) setTab(saved);
+      if (originTab) setTab(originTab);
     }
-
-    const savedModel = localStorage.getItem("modelImage");
-    if (savedModel) setModelImage(savedModel);
-  }, [searchParams]);
+  }, [searchParams, setGarments, setOriginTab, originTab]);
 
   const handleAddGarment = () => {
-    localStorage.setItem("originTab", tab);
+    setOriginTab(tab);
     router.push(`/main?tab=${tab}`);
   };
 
   const handleDeleteGarment = (index: number) => {
-    const updated = garments.filter((_, i) => i !== index);
-    setGarments(updated);
-    localStorage.setItem("tryonProducts", JSON.stringify(updated));
+    const garment = garments[index];
+    if (garment) {
+      // Remove from large images map if exists
+      const newLargeImages = new Map(largeGarmentImages);
+      newLargeImages.delete(garment.id);
+      setLargeGarmentImages(newLargeImages);
+    }
+    removeGarment(index);
   };
 
   const handleModelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Reset input immediately to allow same file to be selected again
+      if (event.target) {
+        event.target.value = "";
+      }
+      
+      // Check file size before reading (limit to 2MB for base64)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("Image file is too large. Please use an image smaller than 2MB.");
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        setModelImage(result);
-        localStorage.setItem("modelImage", result);
+        // Check if base64 is too large for localStorage
+        const base64Size = (result.length * 3) / 4;
+        if (base64Size > 1 * 1024 * 1024) {
+          // Store in memory only, not localStorage
+          setLargeModelImage(result);
+          setModelImage(null); // Clear persisted version
+          toast.success("Image loaded (too large to save, will be lost on page refresh)");
+        } else {
+          // Small enough to persist
+          setModelImage(result);
+          setLargeModelImage(null);
+        }
+      };
+      reader.onerror = () => {
+        toast.error("Failed to read image file");
       };
       reader.readAsDataURL(file);
-      // Reset input properly using ref
-      if (modelInputRef.current) {
-        modelInputRef.current.value = "";
-      }
     }
   };
 
   const handleRemoveModel = (e: React.MouseEvent) => {
     e.stopPropagation();
     setModelImage(null);
-    localStorage.removeItem("modelImage");
+    setLargeModelImage(null);
   };
 
   const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // Reset input immediately to allow same file to be selected again
+    if (e.target) {
+      e.target.value = "";
+    }
+    
+    // Check file size before reading
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image file is too large. Please use an image smaller than 2MB.");
+      return;
+    }
+    
     const reader = new FileReader();
     reader.onload = () => {
+      const result = reader.result as string;
       const newGarment = {
         id: Date.now(),
         name: file.name,
-        image: reader.result as string,
+        image: result,
       };
-      const updatedGarments = [...garments, newGarment];
-      setGarments(updatedGarments);
-      localStorage.setItem("tryonProducts", JSON.stringify(updatedGarments));
-      toast.success("Garment added from gallery!");
+      
+      // Check if base64 is too large for localStorage
+      const base64Size = (result.length * 3) / 4;
+      if (base64Size > 1 * 1024 * 1024) {
+        // Store image in memory only
+        const newLargeImages = new Map(largeGarmentImages);
+        newLargeImages.set(newGarment.id, result);
+        setLargeGarmentImages(newLargeImages);
+        // Add garment without image for localStorage
+        addGarment({ ...newGarment, image: '' });
+        toast.success("Garment added (image too large to save)");
+      } else {
+        // Small enough to persist
+        addGarment(newGarment);
+        toast.success("Garment added from gallery!");
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read image file");
     };
     reader.readAsDataURL(file);
-    e.target.value = "";
+  };
+
+  // Get the actual image (from store or memory)
+  const getModelImage = () => {
+    return largeModelImage || modelImage;
+  };
+
+  // Get garment image (from store or memory)
+  const getGarmentImage = (garment: any) => {
+    if (!garment) return null;
+    const largeImage = largeGarmentImages.get(garment.id);
+    return largeImage || garment.image || null;
   };
 
   const lastGarment =
     garments && garments.length > 0 ? garments[garments.length - 1] : null;
 
   const handleCreateTryOn = () => {
-    if (!modelImage) {
+    const currentModelImage = getModelImage();
+    if (!currentModelImage) {
       toast.error("Please upload your photo first");
       return;
     }
@@ -120,18 +234,31 @@ function TryOnPageContent() {
   };
 
   const handleTryOnSuccess = (resultUrl: string) => {
-    // Save to localStorage first
-    localStorage.setItem("tryonResult", resultUrl);
-    localStorage.setItem(
-      "tryonGarmentName",
-      selectedGarmentForTryOn?.name || ""
-    );
-    // Save buyLink and product image if available
-    if (selectedGarmentForTryOn?.buyLink) {
-      localStorage.setItem("tryonBuyLink", selectedGarmentForTryOn.buyLink);
-    }
-    if (selectedGarmentForTryOn?.image) {
-      localStorage.setItem("tryonProductImage", selectedGarmentForTryOn.image);
+    // Save to localStorage (these are small strings, safe to store)
+    try {
+      localStorage.setItem("tryonResult", resultUrl);
+      localStorage.setItem(
+        "tryonGarmentName",
+        selectedGarmentForTryOn?.name || ""
+      );
+      // Save buyLink if available
+      if (selectedGarmentForTryOn?.buyLink) {
+        localStorage.setItem("tryonBuyLink", selectedGarmentForTryOn.buyLink);
+      }
+      // Only save product image if it's a URL (not base64) or small base64
+      const productImage = getGarmentImage(selectedGarmentForTryOn) || selectedGarmentForTryOn?.image;
+      if (productImage) {
+        // Check if it's a URL or small base64
+        if (!productImage.startsWith('data:') || (productImage.length * 3) / 4 < 500 * 1024) {
+          localStorage.setItem("tryonProductImage", productImage);
+        } else {
+          // Skip large base64 images
+          console.warn("Product image too large, not saving to localStorage");
+        }
+      }
+    } catch (error) {
+      console.error("Error saving to localStorage:", error);
+      // Continue anyway - the result URL is the most important
     }
     // Close modal and redirect immediately without any delay
     setShowTryOnModal(false);
@@ -187,7 +314,7 @@ function TryOnPageContent() {
                   <>
                     <div className="relative w-40 h-40 mb-2 rounded-lg overflow-hidden mt-5">
                       <Image
-                        src={lastGarment.image}
+                        src={getGarmentImage(lastGarment) || lastGarment.image || ''}
                         alt={lastGarment.name}
                         fill
                         className="object-contain rounded-lg"
@@ -198,7 +325,7 @@ function TryOnPageContent() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setPreviewImage(lastGarment.image);
+                          setPreviewImage(getGarmentImage(lastGarment) || lastGarment.image || '');
                         }}
                         className="p-1 hover:bg-gray-200 rounded"
                       >
@@ -233,10 +360,10 @@ function TryOnPageContent() {
               onClick={() => modelInputRef.current?.click()}
             >
               <CardContent className="flex flex-col items-center justify-center py-10 relative mt-5">
-                {modelImage ? (
+                {getModelImage() ? (
                   <div className="relative w-40 h-40 mb-2 overflow-hidden mt-5">
                     <Image
-                      src={modelImage}
+                      src={getModelImage()!}
                       alt="Model"
                       fill
                       className="object-contain"
@@ -259,7 +386,7 @@ function TryOnPageContent() {
 
             <Button
               onClick={handleCreateTryOn}
-              disabled={!modelImage || !lastGarment}
+              disabled={!getModelImage() || !lastGarment}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
@@ -280,7 +407,7 @@ function TryOnPageContent() {
                     <CardContent className="flex flex-col items-center justify-center py-10 relative mt-5">
                       <div className="relative w-25 h-20 mb-2 rounded-md overflow-hidden mt-5">
                         <Image
-                          src={item.image}
+                          src={getGarmentImage(item) || item.image || ''}
                           alt={item.name}
                           fill
                           className="object-contain"
@@ -289,7 +416,7 @@ function TryOnPageContent() {
 
                       <div className="absolute top-2 right-2 flex gap-1 bg-white/70 rounded-md p-1">
                         <button
-                          onClick={() => setPreviewImage(item.image)}
+                          onClick={() => setPreviewImage(getGarmentImage(item) || item.image || '')}
                           className="p-1 hover:bg-gray-200 rounded"
                         >
                           <Eye className="h-3 w-3 text-gray-600" />
@@ -351,10 +478,10 @@ function TryOnPageContent() {
               onClick={() => modelInputRef.current?.click()}
             >
               <CardContent className="flex flex-col items-center justify-center py-10 relative">
-                {modelImage ? (
+                {getModelImage() ? (
                   <div className="relative w-40 h-48 mb-2 overflow-hidden mt-5">
                     <Image
-                      src={modelImage}
+                      src={getModelImage()!}
                       alt="Model"
                       fill
                       className="object-contain"
@@ -377,7 +504,7 @@ function TryOnPageContent() {
 
             <Button
               onClick={handleCreateTryOn}
-              disabled={!modelImage || garments.length === 0}
+              disabled={!getModelImage() || garments.length === 0}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
@@ -388,12 +515,12 @@ function TryOnPageContent() {
       </div>
 
       {/* Try-On Modal */}
-      {showTryOnModal && selectedGarmentForTryOn && modelImage && (
+      {showTryOnModal && selectedGarmentForTryOn && getModelImage() && (
         <TryOnModal
           isOpen={showTryOnModal}
           onClose={() => setShowTryOnModal(false)}
-          humanImage={modelImage}
-          garmentImage={selectedGarmentForTryOn.image}
+          humanImage={getModelImage()!}
+          garmentImage={getGarmentImage(selectedGarmentForTryOn) || selectedGarmentForTryOn.image}
           garmentName={selectedGarmentForTryOn.name}
           onSuccess={handleTryOnSuccess}
         />

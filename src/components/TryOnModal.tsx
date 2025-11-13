@@ -60,17 +60,37 @@ export default function TryOnModal({
     setStatusMessage("Uploading your photo...");
 
     try {
-      // Convert base64 to File if needed
+      // Convert base64 to File if needed with cache-busting
       let humanFile: File;
       if (humanImage.startsWith("data:")) {
-        const response = await fetch(humanImage);
+        const response = await fetch(humanImage, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        });
         const blob = await response.blob();
-        humanFile = new File([blob], "human.jpg", { type: "image/jpeg" });
+        humanFile = new File([blob], `human_${Date.now()}.jpg`, { 
+          type: "image/jpeg",
+          lastModified: Date.now(),
+        });
       } else {
-        // If URL, fetch it
-        const response = await fetch(humanImage);
+        // If URL, fetch it with cache-busting
+        const cacheBuster = humanImage.includes('?') ? '&' : '?';
+        const urlWithCache = `${humanImage}${cacheBuster}_t=${Date.now()}`;
+        const response = await fetch(urlWithCache, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+        });
         const blob = await response.blob();
-        humanFile = new File([blob], "human.jpg", { type: "image/jpeg" });
+        humanFile = new File([blob], `human_${Date.now()}.jpg`, { 
+          type: "image/jpeg",
+          lastModified: Date.now(),
+        });
       }
 
       // Upload human image
@@ -78,11 +98,20 @@ export default function TryOnModal({
       setProgress(30);
       setStatusMessage("Uploading garment...");
 
-      // Download garment from URL and upload
-      const garmentResponse = await fetch(garmentImage);
+      // Download garment from URL and upload with cache-busting
+      const cacheBuster = garmentImage.includes('?') ? '&' : '?';
+      const garmentUrlWithCache = `${garmentImage}${cacheBuster}_t=${Date.now()}`;
+      const garmentResponse = await fetch(garmentUrlWithCache, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      });
       const garmentBlob = await garmentResponse.blob();
-      const garmentFile = new File([garmentBlob], "garment.jpg", {
+      const garmentFile = new File([garmentBlob], `garment_${Date.now()}.jpg`, {
         type: "image/jpeg",
+        lastModified: Date.now(),
       });
 
       const garmentUploadResponse = await VizzleAPI.uploadGarmentImage(garmentFile);

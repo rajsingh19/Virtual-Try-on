@@ -9,6 +9,8 @@ import {
   useLayeredTryOn,
   useVideoGeneration 
 } from "@/hooks/useVizzleApi";
+import { useUploadStore } from "@/app/store/uploadStore";
+import { useTryOnStore } from "@/app/store/tryonStore";
 import { toast } from "react-hot-toast";
 import { 
   Upload, 
@@ -61,13 +63,12 @@ const GARMENT_CATEGORIES = [
 ];
 
 export default function VirtualTryOn() {
-  const [humanImagePreview, setHumanImagePreview] = useState<string | null>(null);
-  const [garmentImagePreview, setGarmentImagePreview] = useState<string | null>(null);
   const [garmentType, setGarmentType] = useState("auto_detect");
   const [garmentCategory, setGarmentCategory] = useState("upper_body");
   const [useVision, setUseVision] = useState(true);
-  const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
   const [showLayeredOptions, setShowLayeredOptions] = useState(false);
+  const humanInputRef = React.useRef<HTMLInputElement>(null);
+  const garmentInputRef = React.useRef<HTMLInputElement>(null);
 
   const humanUpload = useUploadHuman();
   const garmentUpload = useUploadGarment();
@@ -75,24 +76,50 @@ export default function VirtualTryOn() {
   const layeredTryOn = useLayeredTryOn();
   const videoGeneration = useVideoGeneration();
 
+  // Get previews from store
+  const { humanPreview, garmentPreview, setHumanPreview, setGarmentPreview } = useUploadStore();
+  const { resultImageUrl, setResultImageUrl } = useTryOnStore();
+
   // Handle human image upload
   const handleHumanImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Clear previous state to prevent cache issues
+    humanUpload.reset();
+    setHumanPreview(null);
+
+    // Reset input to allow same file to be selected again
+    if (e.target) {
+      e.target.value = "";
+    }
+
+    // Create a fresh file reference with current timestamp
+    const fileBlob = new Blob([file], { type: file.type });
+    const freshFile = new File([fileBlob], file.name, { 
+      type: file.type,
+      lastModified: Date.now() 
+    });
+
     // Preview
     const reader = new FileReader();
     reader.onloadend = () => {
-      setHumanImagePreview(reader.result as string);
+      const preview = reader.result as string;
+      setHumanPreview(preview);
     };
-    reader.readAsDataURL(file);
+    reader.onerror = () => {
+      toast.error("Failed to read image file");
+      setHumanPreview(null);
+    };
+    reader.readAsDataURL(freshFile);
 
-    // Upload
+    // Upload with fresh file
     try {
-      await humanUpload.upload(file);
+      await humanUpload.upload(freshFile);
       toast.success("Human image uploaded successfully!");
     } catch (error) {
       toast.error("Failed to upload human image");
+      setHumanPreview(null);
     }
   };
 
@@ -101,19 +128,41 @@ export default function VirtualTryOn() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Clear previous state to prevent cache issues
+    garmentUpload.reset();
+    setGarmentPreview(null);
+
+    // Reset input to allow same file to be selected again
+    if (e.target) {
+      e.target.value = "";
+    }
+
+    // Create a fresh file reference with current timestamp
+    const fileBlob = new Blob([file], { type: file.type });
+    const freshFile = new File([fileBlob], file.name, { 
+      type: file.type,
+      lastModified: Date.now() 
+    });
+
     // Preview
     const reader = new FileReader();
     reader.onloadend = () => {
-      setGarmentImagePreview(reader.result as string);
+      const preview = reader.result as string;
+      setGarmentPreview(preview);
     };
-    reader.readAsDataURL(file);
+    reader.onerror = () => {
+      toast.error("Failed to read image file");
+      setGarmentPreview(null);
+    };
+    reader.readAsDataURL(freshFile);
 
-    // Upload
+    // Upload with fresh file
     try {
-      await garmentUpload.upload(file);
+      await garmentUpload.upload(freshFile);
       toast.success("Garment image uploaded successfully!");
     } catch (error) {
       toast.error("Failed to upload garment image");
+      setGarmentPreview(null);
     }
   };
 
@@ -235,8 +284,8 @@ export default function VirtualTryOn() {
 
   // Reset all
   const handleReset = () => {
-    setHumanImagePreview(null);
-    setGarmentImagePreview(null);
+    setHumanPreview(null);
+    setGarmentPreview(null);
     setResultImageUrl(null);
     setShowLayeredOptions(false);
     humanUpload.reset();
@@ -244,6 +293,13 @@ export default function VirtualTryOn() {
     virtualTryOn.reset();
     layeredTryOn.reset();
     videoGeneration.reset();
+    // Reset file inputs
+    if (humanInputRef.current) {
+      humanInputRef.current.value = "";
+    }
+    if (garmentInputRef.current) {
+      garmentInputRef.current.value = "";
+    }
     toast.success("Reset successfully!");
   };
 
@@ -279,6 +335,7 @@ export default function VirtualTryOn() {
             
             <div className="relative">
               <input
+                ref={humanInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleHumanImageUpload}
@@ -290,10 +347,10 @@ export default function VirtualTryOn() {
                 htmlFor="human-upload"
                 className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors"
               >
-                {humanImagePreview ? (
+                {humanPreview ? (
                   <div className="relative w-full h-full">
                     <Image
-                      src={humanImagePreview}
+                      src={humanPreview}
                       alt="Human preview"
                       fill
                       className="object-contain rounded-lg"
@@ -325,6 +382,7 @@ export default function VirtualTryOn() {
             
             <div className="relative">
               <input
+                ref={garmentInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleGarmentImageUpload}
@@ -336,10 +394,10 @@ export default function VirtualTryOn() {
                 htmlFor="garment-upload"
                 className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-purple-500 transition-colors"
               >
-                {garmentImagePreview ? (
+                {garmentPreview ? (
                   <div className="relative w-full h-full">
                     <Image
-                      src={garmentImagePreview}
+                      src={garmentPreview}
                       alt="Garment preview"
                       fill
                       className="object-contain rounded-lg"
